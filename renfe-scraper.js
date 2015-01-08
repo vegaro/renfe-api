@@ -98,25 +98,95 @@ var toTime = function(renfeTime) {
     return time;
 };
 
+var toTimeFromDate = function(renfeTime) {
+    var renfeTime = new Date(renfeTime); 
+    var hours = renfeTime.getHours(),
+        minutes = renfeTime.getMinutes(),
+        time = '';
+    if (hours) {
+        time = hours + 'h ';
+    }
+    if (minutes) {
+        time += minutes + 'min';
+    }
+    return time;
+};
+
+
 var parseTrip = function(body, callback) {
     var $ = cheerio.load(body);
     var rows = $('table tr');
     var routes = [];
-    rows.each(function() {
-        var cols = $(this).find('td:not(.rojo3)'),
-            line =  $(cols[0]).text().trim(),
-            start = $(cols[1]).text().trim(),
-            arrive = $(cols[cols.length - 2]).text().trim(),
-            time = $(cols[cols.length - 1]).text().trim();
-        if (!isNaN(Number(start[0]))) {
-            routes.push({
-                line: line,
-                start: toHour(start),
-                arrive: toHour(arrive),
-                time: toTime(time)
-            });
-        }
+    var transfers_dirty_rows = $('td[colspan="2"]:not(:contains(" Transbordo en"))');
+    var transfers = [];
+    transfers_dirty_rows.each(function(i) {
+        transfers[i] = {};
+        transfers[i].station = $(this).text().trim();
     });
+
+    if (transfers.length === 0) {
+        rows.each(function() {
+            var train = {};
+            var trains = [];
+
+            var cols = $(this).find('td:not(.rojo3)'),
+                time = $(cols[cols.length - 1]).text().trim();
+            
+            train.line =  $(cols[0]).text().trim();
+            train.start_time = $(cols[1]).text().trim();
+            train.arrival_time = $(cols[cols.length - 2]).text().trim();
+            trains.push(train);
+
+            if (!isNaN(Number(train.start_time[0]))) {
+                routes.push({
+                    // time: toTime(final_arrival_time - final_start_time),
+                    time: toTime(time),
+                    trains: trains
+                });
+            }
+        });
+    } else {
+        // There's transfers
+        rows.each(function() {
+            var trains = [];
+
+            // Get the first train values
+            var cols = $(this).find('td:not(.rojo3)'),
+                line =  $(cols[0]).text().trim(),
+                start_time = $(cols[1]).text().trim(),
+                arrival_time = $(cols[2]).text().trim();
+
+            trains[0] = {};
+            trains[0].line = line;
+            trains[0].start_time = start_time;
+            trains[0].arrival_time = arrival_time;
+
+            for (var i = 0; i < transfers.length; i++) {
+                trains[i+1] = {}
+                trains[i+1].line = $(cols[3*(i+1)+1]).text().trim();
+                trains[i+1].start_time = $(cols[3*(i+1)]).text().trim();
+                trains[i+1].arrival_time = $(cols[3*(i+1)+2]).text().trim();
+            };
+
+            if (!isNaN(Number(start_time[0]))) {
+                var time = trains[transfers.length].arrival_time - trains[0].start_time;
+
+                var final_arrival_time = new Date();
+                final_arrival_time.setHours(trains[transfers.length].arrival_time.split(".")[0], trains[transfers.length].arrival_time.split(".")[1], 0);
+                var final_start_time = new Date();
+                final_start_time.setHours(trains[0].start_time.split(".")[0], trains[0].start_time.split(".")[1], 0);
+                var time = new Date();
+                time.setHours(0, 0, 0, Math.abs(final_arrival_time - final_start_time));
+
+                routes.push({
+                    // time: toTime(final_arrival_time - final_start_time),
+                    time: toTimeFromDate(time),
+                    trains: trains
+                });
+            }
+        });
+    }
+
     callback(routes);
 };
 
