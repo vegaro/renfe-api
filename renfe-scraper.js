@@ -117,12 +117,15 @@ var parseTrip = function(body, callback) {
     var $ = cheerio.load(body);
     var rows = $('table tr');
     var routes = [];
-    var transfers_dirty_rows = $('td[colspan="2"]:not(:contains(" Transbordo en"))');
+    var transfers_dirty_rows = $('td[colspan="2"]:not(:contains(" Transbordo en")):not(:contains("Transbordo en"))');
     var transfers = [];
     transfers_dirty_rows.each(function(i) {
         transfers[i] = {};
+        console.log("transfers " + $(this).text().trim());
+        
         transfers[i].station = $(this).text().trim();
     });
+
 
     if (transfers.length === 0) {
         rows.each(function() {
