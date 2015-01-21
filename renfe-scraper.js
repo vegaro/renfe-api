@@ -184,6 +184,7 @@ var parseTrip = function(body, callback) {
                 routes.push({
                     // time: toTime(final_arrival_time - final_start_time),
                     time: toTimeFromDate(time),
+                    transfers: transfers,
                     trains: trains
                 });
             }
